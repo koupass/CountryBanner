@@ -3,12 +3,11 @@ import os
 import logging
 
 __author__ = "AmirHossein Ashouripour"
-	"""definition
-	Author: AmirHossein Ashouripour
-	Date: 26/12/2019
-	Description: This peace of code finds IP Addresses from log files and drop connection using Firewalld
-	"""
-
+"""definition
+        Author: AmirHossein Ashouripour
+        Date: 26/12/2019
+        Description: This peace of code finds IP Addresses from log files and drop connection using Firewalld
+"""
 logging.basicConfig(level=logging.INFO)
 
 MERGEDLOG = '/tmp/merged.log'
@@ -129,4 +128,5 @@ def get_line_count(address, log):
 
 
 if __name__ == '__main__':
+
     controller(MAINADDRESS)
