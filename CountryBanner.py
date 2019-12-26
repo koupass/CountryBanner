@@ -15,6 +15,7 @@ LOGTEMP = '/tmp/logtemp'
 MAINADDRESS = '/opt/projects/erp/logs/nginx/'
 BLACKLIST = 'black_ips'
 IPSET = 'black_countries'
+COUNTRY ='IR'
 
 
 def get_ip_information(ip_address):
@@ -30,9 +31,14 @@ def set_iptables(blk_ips):
 
     get = os.popen('firewall-cmd --permanent --get-ipsets')
     ip_sets = get.read()
-    if BLACKLIST in ip_sets:
+
+    if IPSET in ip_sets:
         add = os.popen('firewall-cmd --permanent --ipset=%s --add-entries-from-file=%s' % (IPSET, BLACKLIST))
         logging.info('add:' + add.read())
+        if add.read() == 'success':
+            reload = os.popen('firewall-cmd --reload')
+            if reload.read() == 'success':
+                os.popen('rm -f %s' % MERGEDLOG)
     else:
         new = os.popen('firewall-cmd --permanent --new-ipset=%s --type=hash:net' % IPSET)
         logging.info('new:' + new.read())
@@ -41,10 +47,9 @@ def set_iptables(blk_ips):
             ip_set = os.popen('firewall-cmd --permanent --ipset=%s --add-entries-from-file=%s' % (IPSET, BLACKLIST))
             logging.info('ip_set:' + ip_set.read())
             if ip_set.read() == 'success':
-                reload = os.popen('firewall-cmd reload')
+                reload = os.popen('firewall-cmd --reload')
                 logging.info('reload:' + reload.read())
-                if reload.read() =='success':
-
+                if reload.read() == 'success':
                     os.popen('rm -f %s' % MERGEDLOG)
         else:
             logging.error('new:' + new.read())
@@ -63,9 +68,10 @@ def find_ips(file_address):
 
 def controller(address):
     log_manager(address)
-    ip_array = find_ips(LOGTEMP)
+    ip_array = find_ips(MERGEDLOG)
     blacklist = check_country(refine(ip_array))
-    # set_iptables(blacklist)
+    print(blacklist)
+    set_iptables(blacklist)
 
 
 def refine(ips):
@@ -76,7 +82,7 @@ def check_country(ips):
     blk_ips = []
     for x in ips:
         ip_info = get_ip_information(x)
-        blk_ips.append(x) if (ip_info.country != 'IR') else print(x + ' from ' + ip_info.city)
+        blk_ips.append(x) if (ip_info.country != COUNTRY) else print(x + ' from ' + ip_info.city)
         print(x + ' from Country: ' + ip_info.country + ' city: ' + ip_info.city)
     return blk_ips
 
@@ -89,7 +95,7 @@ def log_manager(address):
     for x in range(len(logs)):
         if len(logs[x]) > 0:
             file_lines[logs[x]] = get_line_count(address, logs[x])
-            if len(get_old_logs_number) <1:
+            if len(get_old_logs_number) < 1:
                 os.popen('cat %s >> %s' % (address + logs[x], MERGEDLOG))
             else:
                 os.popen('tail --lines=+%s %s >> %s' % (
@@ -101,12 +107,12 @@ def log_manager(address):
 
 def get_old_lines_number():
     logs = {}
-    line_saize=os.popen('wc -l %s' % LOGTEMP).read().split(' ')[0]
+    line_saize = os.popen('wc -l %s' % LOGTEMP).read().split(' ')[0]
 
     logging.info('count of lines inlogtemp is:' + line_saize)
 
     if line_saize in locals() and line_saize != 0:
-        print('count of lines in logtemp is:'+line_saize)
+        print('count of lines in logtemp is:' + line_saize)
         with open(LOGTEMP) as tmp_file:
 
             print('in the opener:' + line_saize)
@@ -119,14 +125,17 @@ def get_old_lines_number():
 
 
 def get_line_count(address, log):
-    wc = os.popen('wc -l %s' % address + log)
-    tmp_file = open(LOGTEMP, "w")
-    tmp_file.write("%s: %s\n" % (log, wc.read()))
-    tmp_file.close()
+    w = 0
+    wc = os.popen('wc -l %s' % address + log).read().split(' ')[0]
+    if int(wc) > 0:
+        print(wc)
+        tmp_file = open(LOGTEMP, "w+")
+        tmp_file.write("%s: %s\n" % (log, wc))
+        tmp_file.close()
+        w = wc
 
-    return wc
+    return w
 
 
 if __name__ == '__main__':
-
     controller(MAINADDRESS)
